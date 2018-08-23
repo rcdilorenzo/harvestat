@@ -10,13 +10,23 @@ import Data.Harvest.Project (Project)
 import Data.Harvest.Client (Client)
 import Data.Harvest.User (User)
 
+import ApiClient
+
+data ExternalReference = ExternalReference
+  { referenceId :: String
+  , groupId :: String
+  , permalink :: String
+  , service :: String
+  , serviceIconUrl :: String
+  } deriving (Show)
+
 data TimeEntry = TimeEntry
   { id :: Int
   , date :: Day
   , hours :: Double
   , billable :: Bool
   , notes :: Maybe String
-  , reference :: Maybe String
+  , reference :: Maybe ExternalReference
   , user :: User
   , project :: Project
   , client :: Client
@@ -26,6 +36,15 @@ data TimeEntry = TimeEntry
 
 data ResponseTimeEntries = ResponseTimeEntries
   { entries :: [TimeEntry] } deriving Show
+
+instance FromJSON ExternalReference where
+  parseJSON = withObject "external_reference" $ \o ->
+    ExternalReference
+      <$> o .: "id"
+      <*> o .: "group_id"
+      <*> o .: "permalink"
+      <*> o .: "service"
+      <*> o .: "service_icon_url"
 
 instance FromJSON TimeEntry where
   parseJSON = withObject "time_entry" $ \o ->
@@ -45,3 +64,12 @@ instance FromJSON TimeEntry where
 instance FromJSON ResponseTimeEntries where
   parseJSON = withObject "time_entries" $ \o ->
     ResponseTimeEntries <$> o .: "time_entries"
+
+instance Semigroup ResponseTimeEntries where
+  (<>) a b = ResponseTimeEntries $ (entries a) <> (entries b)
+
+instance Monoid ResponseTimeEntries where
+  mempty = ResponseTimeEntries []
+
+instance CountableMonoid ResponseTimeEntries where
+  count = length . entries
